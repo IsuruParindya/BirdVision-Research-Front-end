@@ -154,65 +154,31 @@ export function LiveFeedPage() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {/* ✅ Sinhala Name OUTSIDE the card (overlay near bounding box) */}
+                  <AnimatePresence>
+                    {detectedBird && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        className="absolute z-20"
+                        style={{
+                          left: `${detectedBird.boundingBox.x}%`,
+                          top: `calc(${detectedBird.boundingBox.y}% - 40px)`,
+                        }}
+                      >
+                        <div className="px-3 py-1.5 rounded-full backdrop-blur-md bg-black/55 border border-white/15 shadow-lg">
+                          <span className="text-base font-semibold text-white font-['Noto_Sans_Sinhala']">
+                            {detectedBird.sinhalaName}
+                          </span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </>
               )}
             </div>
-
-            {/* Bird Info Card */}
-            <AnimatePresence>
-  {detectedBird && isActive && (
-    <motion.div
-      initial={{ x: 400, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: 400, opacity: 0 }}
-      transition={{ type: "spring", damping: 25 }}
-      className="absolute bottom-4 right-4 w-64 backdrop-blur-lg bg-white/90 dark:bg-slate-800/90 rounded-xl shadow-xl border border-white/20 p-4"
-    >
-      <div className="flex items-start gap-2">
-        <img
-          src={detectedBird.image}
-          alt={detectedBird.name}
-          className="w-16 h-16 rounded-lg object-cover shadow-md"
-        />
-        <div className="flex-1">
-          <h3 className="font-bold text-base text-gray-900 dark:text-white">
-            {detectedBird.name}
-          </h3>
-          <p className="text-lg font-semibold text-[var(--forest-green)] dark:text-[var(--forest-green-light)] font-['Noto_Sans_Sinhala'] mt-1">
-            {detectedBird.sinhalaName}
-          </p>
-        </div>
-      </div>
-
-      <div className="space-y-2 mt-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600 dark:text-gray-300">Confidence</span>
-          <span className="font-semibold text-[var(--sky-blue)]">{detectedBird.confidence}%</span>
-        </div>
-
-        <div className="text-sm">
-          <span className="text-gray-600 dark:text-gray-300 block mb-0.5">Habitat</span>
-          <p className="text-gray-900 dark:text-white">{detectedBird.habitat}</p>
-        </div>
-
-        <div className="text-sm">
-          <span className="text-gray-600 dark:text-gray-300 block mb-0.5">Conservation Status</span>
-          <span className="inline-block px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium">
-            {detectedBird.conservationStatus}
-          </span>
-        </div>
-
-        <Button
-          onClick={playAudio}
-          className="w-full text-sm bg-gradient-to-r from-[var(--forest-green)] to-[var(--sky-blue)] hover:opacity-90 transition-opacity mt-2 py-1.5"
-        >
-          <Volume2 className="w-3 h-3 mr-1" />
-          Play Sinhala Audio
-        </Button>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
           </div>
 
           {/* Controls */}
