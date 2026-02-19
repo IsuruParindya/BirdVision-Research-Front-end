@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Video, Upload, Leaf, Bird, Globe } from "lucide-react";
+import { Video, Upload, Leaf, Bird, Globe,Scroll} from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import boris from "../../assets/boris.jpg";
@@ -141,7 +141,7 @@ export function HomePage() {
                 desc: "Identify bird species instantly using your camera",
               },
               {
-                icon: <Globe className="w-5 h-5 text-white" />,
+                icon: <Scroll className="w-5 h-5 text-white" />,
                 title: "සිංහල Support",
                 desc: "View bird names in English and Sinhala",
               },
