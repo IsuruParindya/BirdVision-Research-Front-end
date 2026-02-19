@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect, useMemo } from "react";
-import {Upload,Image as ImageIcon,Video as VideoIcon,X,Volume2,Leaf,}
-from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { UploadCloud, FileImage, Film, Trash2, Play, Pause, Leaf, Bird } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "../components/ui/button";
+import { Slider } from "../components/ui/slider";
+
+type MediaKind = "image" | "video" | null;
 
 interface DetectionResult {
   name: string;
@@ -10,19 +12,23 @@ interface DetectionResult {
   confidence: number;
   habitat: string;
   conservationStatus: string;
-  image: string;
-  boundingBox: { x: number; y: number; width: number; height: number };
+  image?: string;
 }
 
 export function UploadPage() {
-  const [uploadedFile, setUploadedFile] = useState<string | null>(null);
-  const [fileName, setFileName] = useState<string>("");
-  const [isDragging, setIsDragging] = useState(false);
-  const [detection, setDetection] = useState<DetectionResult | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [mediaKind, setMediaKind] = useState<MediaKind>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [confidence, setConfidence] = useState([75]);
 
-  // ✅ Viewport size for floating leaves animation (avoids window usage in render)
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [result, setResult] = useState<DetectionResult | null>(null);
+
+  // Video controls helpers
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Background leaves
   const [vw, setVw] = useState(1200);
   const [vh, setVh] = useState(800);
 
@@ -47,70 +53,140 @@ export function UploadPage() {
     [vw]
   );
 
-  const handleFileUpload = (file: File) => {
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadedFile(e.target?.result as string);
-      setIsProcessing(true);
+  // Create / cleanup preview URL
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl("");
+      setMediaKind(null);
+      return;
+    }
 
-      // Mock detection process
-      setTimeout(() => {
-        setDetection({
-          name: "Oriental White-eye",
-          sinhalaName: "ඇස්කිළිලියා",
-          confidence: 87.3,
-          habitat: "Gardens and forest edges",
-          conservationStatus: "Least Concern",
-          image:
-            "https://images.unsplash.com/photo-1656590277881-68a65ee8eb1b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb2xvcmZ1bCUyMGJpcmQlMjBuYXR1cmUlMjBmb3Jlc3R8ZW58MXx8fHwxNzcxMzE0NDY3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-          boundingBox: { x: 30, y: 25, width: 40, height: 50 },
-        });
-        setIsProcessing(false);
-      }, 2000);
+    const kind: MediaKind = file.type.startsWith("image/")
+      ? "image"
+      : file.type.startsWith("video/")
+      ? "video"
+      : null;
+
+    setMediaKind(kind);
+
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
     };
-    reader.readAsDataURL(file);
-  };
+  }, [file]);
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file && (file.type.startsWith("image/") || file.type.startsWith("video/"))) {
-      handleFileUpload(file);
+  // Keep play/pause state in sync
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+
+    v.addEventListener("play", onPlay);
+    v.addEventListener("pause", onPause);
+
+    return () => {
+      v.removeEventListener("play", onPlay);
+      v.removeEventListener("pause", onPause);
+    };
+  }, [previewUrl]);
+
+  const resetAll = () => {
+    setFile(null);
+    setResult(null);
+    setIsAnalyzing(false);
+    setIsPlaying(false);
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const onPickFile = (f: File | null) => {
+    setResult(null);
+    setIsAnalyzing(false);
+    setFile(f);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  // Optional helper: capture a frame from video as a Blob (image/jpeg)
+  const captureVideoFrame = async (): Promise<Blob | null> => {
+    const v = videoRef.current;
+    if (!v) return null;
+
+    // Ensure metadata loaded
+    if (v.readyState < 2) {
+      await new Promise<void>((resolve) => {
+        const onLoaded = () => {
+          v.removeEventListener("loadeddata", onLoaded);
+          resolve();
+        };
+        v.addEventListener("loadeddata", onLoaded);
+      });
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth || 1280;
+    canvas.height = v.videoHeight || 720;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+
+    return await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.9);
+    });
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
+  const analyzeMedia = async () => {
+    if (!file || !mediaKind) return;
+
+    setIsAnalyzing(true);
+    setResult(null);
+
+    try {
+      // ✅ Here is where you will call your backend/model.
+      // For now: mock detection that works for both image and video.
+
+      // Example: if video, capture a frame (so image-based pipeline can run)
+      if (mediaKind === "video") {
+        await captureVideoFrame();
+        // You can send this frame blob to your API instead of the whole video
+        // e.g. POST /detect/frame
+      } else {
+        // For image: you can send file directly
+        // e.g. POST /detect/image
+      }
+
+      // Fake delay for demo UX
+      await new Promise((r) => setTimeout(r, 1200));
+
+      setResult({
+        name: "Sri Lanka Blue Magpie",
+        sinhalaName: "කැහැටාලිහිණියා",
+        confidence: 92.5,
+        habitat: "Rainforests and wet zones",
+        conservationStatus: "Vulnerable",
+        image:
+          "https://images.unsplash.com/photo-1713299713432-21f7241ddcc1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+      });
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
-  const clearUpload = () => {
-    setUploadedFile(null);
-    setFileName("");
-    setDetection(null);
-    setIsProcessing(false);
-  };
-
-  const playAudio = () => {
-    const speech = new SpeechSynthesisUtterance(detection?.sinhalaName || "");
-    speech.lang = "si-LK";
-    window.speechSynthesis.speak(speech);
+  const toggleVideo = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play();
+    else v.pause();
   };
 
   return (
     <div className="relative min-h-dvh">
-      {/* ✅ Full viewport background (no white gaps) */}
+      {/* Background */}
       <div className="fixed inset-0 -z-10 bg-gradient-to-br from-[var(--nature-gradient-from)] via-[var(--nature-gradient-to)] to-[var(--sky-blue-light)] dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
         <div className="absolute inset-0 opacity-20 pointer-events-none">
           <div className="absolute top-10 left-10 w-52 h-52 bg-[var(--forest-green)] rounded-full blur-3xl animate-pulse" />
@@ -118,262 +194,236 @@ export function UploadPage() {
         </div>
       </div>
 
-      {/* ✅ Animated Leaves */}
+      {/* Floating Leaves */}
       {leaves.map((l, i) => (
         <motion.div
           key={i}
-          className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none -z-0"
+          className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none"
           style={{ left: 0, top: 0 }}
           initial={{ y: -120, x: l.startX, rotate: 0 }}
           animate={{ y: vh + 140, x: l.endX, rotate: 360 }}
-          transition={{
-            duration: l.duration,
-            repeat: Infinity,
-            delay: l.delay,
-            ease: "linear",
-          }}
+          transition={{ duration: l.duration, repeat: Infinity, delay: l.delay, ease: "linear" }}
         >
           <Leaf className="w-6 h-6" />
         </motion.div>
       ))}
 
-      {/* Page Content */}
-      <div className="relative container mx-auto px-6 py-8 pb-16">
-        {/* Page Title */}
-        <motion.div
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Upload & Detect
-          </h1>
+      <div className="container mx-auto px-6 py-8 pb-16">
+        {/* Title */}
+        <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">Upload & Analyze</h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Upload an image or video to identify bird species
+            Upload an image or a video to identify bird species
           </p>
         </motion.div>
 
-        <div className="max-w-2xl mx-auto">
-          {!uploadedFile ? (
-            /* Upload Area */
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              className={`backdrop-blur-lg bg-white/60 dark:bg-slate-800/60 rounded-3xl shadow-2xl border-4 border-dashed transition-all cursor-pointer overflow-hidden ${
-                isDragging
-                  ? "border-[var(--sky-blue)] bg-[var(--sky-blue)]/10 scale-[1.02]"
-                  : "border-gray-300 dark:border-gray-600 hover:border-[var(--forest-green)]"
-              }`}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="p-16 text-center">
-                <motion.div
-                  animate={{ y: isDragging ? -10 : 0 }}
-                  className="mb-6"
-                >
-                  <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-[var(--forest-green)] to-[var(--sky-blue)] rounded-2xl flex items-center justify-center shadow-xl">
-                    <Upload className="w-12 h-12 text-white" />
-                  </div>
-                </motion.div>
-
-                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-3">
-                  Drag and drop your file here
-                </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-6">
-                  or click to browse your files
-                </p>
-
-                <div className="flex items-center justify-center gap-6 mb-6">
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                    <ImageIcon className="w-5 h-5" />
-                    <span className="text-sm">Images</span>
-                  </div>
-                  <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                    <VideoIcon className="w-5 h-5" />
-                    <span className="text-sm">Videos</span>
-                  </div>
+        {/* ✅ Option A: stretch both columns to equal height */}
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+          {/* Left: Upload + Preview */}
+          <motion.div
+            initial={{ x: -30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="backdrop-blur-lg bg-white/60 dark:bg-slate-800/60 rounded-3xl shadow-xl p-6 border border-white/20 h-full"
+          >
+            {/* Upload Area */}
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-[var(--forest-green)] to-[var(--sky-blue)] rounded-xl flex items-center justify-center shadow-lg">
+                  <UploadCloud className="w-6 h-6 text-white" />
                 </div>
-
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-[var(--forest-green)] to-[var(--sky-blue)] hover:opacity-90 transition-opacity shadow-lg"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  <Upload className="w-5 h-5 mr-2" />
-                  Choose File
-                </Button>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Upload Media</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">Supports image & video</p>
+                </div>
               </div>
-            </motion.div>
-          ) : (
-            /* Preview and Detection Area */
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="space-y-6"
-            >
-              {/* Preview Card */}
-              <div className="backdrop-blur-lg bg-white/60 dark:bg-slate-800/60 rounded-3xl shadow-2xl overflow-hidden border border-white/20">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[var(--forest-green)] to-[var(--sky-blue)] rounded-lg flex items-center justify-center">
-                      {fileName.match(/\.(jpg|jpeg|png|gif)$/i) ? (
-                        <ImageIcon className="w-5 h-5 text-white" />
-                      ) : (
-                        <VideoIcon className="w-5 h-5 text-white" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{fileName}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Uploaded file</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearUpload}
-                    className="hover:bg-red-50 dark:hover:bg-red-900/20"
-                  >
-                    <X className="w-5 h-5 text-red-500" />
-                  </Button>
+
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={resetAll}
+                disabled={!file && !result}
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear
+              </Button>
+            </div>
+
+            <label className="block">
+              <input
+                type="file"
+                accept="image/*,video/*"
+                className="hidden"
+                onChange={(e) => onPickFile(e.target.files?.[0] || null)}
+              />
+
+              <div className="cursor-pointer rounded-2xl border-2 border-dashed border-white/40 dark:border-white/15 bg-white/40 dark:bg-slate-900/20 p-6 text-center hover:bg-white/55 dark:hover:bg-slate-900/30 transition">
+                <div className="flex items-center justify-center gap-3">
+                  <FileImage className="w-6 h-6 text-[var(--forest-green)]" />
+                  <Film className="w-6 h-6 text-[var(--sky-blue)]" />
                 </div>
+                <p className="mt-3 font-medium text-gray-900 dark:text-white">
+                  Click to select an image or video
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                  JPG, PNG, WEBP, MP4, MOV, WEBM (depending on browser)
+                </p>
+              </div>
+            </label>
 
-                {/* Image Preview with Bounding Box */}
-                <div className="relative aspect-video bg-black">
-                  <img
-                    src={uploadedFile}
-                    alt="Uploaded content"
-                    className="w-full h-full object-contain"
-                  />
+            {/* Preview */}
+            <div className="mt-5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Preview</p>
+                {file && (
+                  <span className="text-xs text-gray-600 dark:text-gray-300">
+                    {mediaKind === "image" ? "Image" : mediaKind === "video" ? "Video" : "Unknown"} • {Math.round(file.size / 1024)} KB
+                  </span>
+                )}
+              </div>
 
-                  {/* Processing Overlay */}
-                  {isProcessing && (
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-[var(--sky-blue)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-white font-medium">Processing image...</p>
+              <div className="relative rounded-2xl overflow-hidden bg-black shadow-xl aspect-video">
+                {!previewUrl ? (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    No media selected
+                  </div>
+                ) : mediaKind === "image" ? (
+                  <img src={previewUrl} alt="Uploaded preview" className="w-full h-full object-contain bg-black" />
+                ) : (
+                  <>
+                    <video
+                      ref={videoRef}
+                      src={previewUrl}
+                      controls
+                      className="w-full h-full object-contain bg-black"
+                    />
+                    <div className="absolute bottom-3 left-3">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="gap-2"
+                        onClick={toggleVideo}
+                      >
+                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                        {isPlaying ? "Pause" : "Play"}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Confidence */}
+            <div className="mt-5">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                Detection Confidence: {confidence[0]}%
+              </label>
+              <Slider value={confidence} onValueChange={setConfidence} max={100} step={1} className="w-full" />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Only show detections above this threshold.
+              </p>
+            </div>
+
+            {/* Analyze Button */}
+            <div className="mt-6 flex gap-3">
+              <Button
+                onClick={analyzeMedia}
+                disabled={!file || !mediaKind || isAnalyzing}
+                className="flex-1 bg-gradient-to-r from-[var(--forest-green)] to-[var(--sky-blue)] hover:opacity-90 transition-opacity shadow-lg"
+                size="lg"
+              >
+                <Bird className="w-5 h-5 mr-2" />
+                {isAnalyzing ? "Analyzing..." : "Analyze"}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-2"
+                disabled={!file || isAnalyzing}
+                onClick={() => onPickFile(null)}
+              >
+                Remove
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* Right: Result */}
+          <motion.div
+            initial={{ x: 30, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            className="backdrop-blur-lg bg-white/60 dark:bg-slate-800/60 rounded-3xl shadow-xl p-6 border border-white/20"
+          >
+            {/* ✅ Option A: sticky content on large screens */}
+            <div className="lg:sticky lg:top-24">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-[var(--forest-green)] to-[var(--sky-blue)] rounded-xl flex items-center justify-center shadow-lg">
+                  <Bird className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Detection Result</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Works for both image and video uploads
+                  </p>
+                </div>
+              </div>
+
+              <AnimatePresence mode="wait">
+                {!result ? (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="rounded-2xl bg-white/50 dark:bg-slate-700/40 border border-white/20 p-6 text-center text-gray-600 dark:text-gray-300"
+                  >
+                    {isAnalyzing ? "Analyzing... please wait" : "Upload and click Analyze to see results."}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="result"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="rounded-2xl bg-white/70 dark:bg-slate-900/30 border border-white/20 p-5"
+                  >
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={result.image}
+                        alt={result.name}
+                        className="w-16 h-16 rounded-xl object-cover shadow-md"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white">{result.name}</h3>
+                        <p className="text-base font-semibold text-[var(--forest-green)] dark:text-[var(--forest-green-light)] font-['Noto_Sans_Sinhala'] mt-1">
+                          {result.sinhalaName}
+                        </p>
                       </div>
                     </div>
-                  )}
 
-                  {/* Bounding Box */}
-                  <AnimatePresence>
-                    {detection && !isProcessing && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="absolute border-4 border-[var(--detection-blue)] rounded-lg"
-                        style={{
-                          left: `${detection.boundingBox.x}%`,
-                          top: `${detection.boundingBox.y}%`,
-                          width: `${detection.boundingBox.width}%`,
-                          height: `${detection.boundingBox.height}%`,
-                          boxShadow: "0 0 30px rgba(59, 130, 246, 0.8)",
-                        }}
-                      >
-                        <motion.div
-                          className="absolute inset-0 border-4 border-[var(--detection-blue)]"
-                          animate={{ opacity: [0.5, 1, 0.5] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
+                    <div className="mt-4 space-y-2 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600 dark:text-gray-300">Confidence</span>
+                        <span className="font-semibold text-[var(--sky-blue)]">{result.confidence}%</span>
+                      </div>
 
-              {/* Detection Results */}
-              <AnimatePresence>
-                {detection && !isProcessing && (
-                  <motion.div
-                    initial={{ y: 30, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 30, opacity: 0 }}
-                    className="backdrop-blur-lg bg-white/60 dark:bg-slate-800/60 rounded-3xl shadow-2xl p-8 border border-white/20"
-                  >
-                    <div className="flex flex-col md:flex-row items-start gap-6">
-                      {/* Bird Thumbnail */}
-                      <img
-                        src={detection.image}
-                        alt={detection.name}
-                        className="w-32 h-32 rounded-2xl object-cover shadow-lg"
-                      />
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-300 block mb-0.5">Habitat</span>
+                        <p className="text-gray-900 dark:text-white">{result.habitat}</p>
+                      </div>
 
-                      {/* Bird Info */}
-                      <div className="flex-1">
-                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                          {detection.name}
-                        </h2>
-                        <p className="text-4xl font-semibold text-[var(--forest-green)] dark:text-[var(--forest-green-light)] font-['Noto_Sans_Sinhala'] mb-6">
-                          {detection.sinhalaName}
-                        </p>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                          <div>
-                            <span className="text-sm text-gray-600 dark:text-gray-300 block mb-1">
-                              Confidence
-                            </span>
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${detection.confidence}%` }}
-                                  transition={{ duration: 1, ease: "easeOut" }}
-                                  className="h-full bg-gradient-to-r from-[var(--forest-green)] to-[var(--sky-blue)]"
-                                />
-                              </div>
-                              <span className="font-bold text-[var(--sky-blue)]">
-                                {detection.confidence}%
-                              </span>
-                            </div>
-                          </div>
-
-                          <div>
-                            <span className="text-sm text-gray-600 dark:text-gray-300 block mb-1">
-                              Conservation Status
-                            </span>
-                            <span className="inline-block px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-sm font-medium">
-                              {detection.conservationStatus}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mb-6">
-                          <span className="text-sm text-gray-600 dark:text-gray-300 block mb-2">
-                            Habitat
-                          </span>
-                          <p className="text-gray-900 dark:text-white">{detection.habitat}</p>
-                        </div>
-
-                        <Button
-                          onClick={playAudio}
-                          size="lg"
-                          className="bg-gradient-to-r from-[var(--forest-green)] to-[var(--sky-blue)] hover:opacity-90 transition-opacity shadow-lg"
-                        >
-                          <Volume2 className="w-5 h-5 mr-2" />
-                          Play Sinhala Pronunciation
-                        </Button>
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-300 block mb-0.5">Conservation Status</span>
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-medium">
+                          {result.conservationStatus}
+                        </span>
                       </div>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>
