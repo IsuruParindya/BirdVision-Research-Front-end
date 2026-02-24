@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Camera, CameraOff, Aperture, Bird, Volume2, Leaf } from "lucide-react";
+import { Camera, CameraOff, Aperture, Bird, Volume2, Feather } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "../components/ui/button";
 import { Slider } from "../components/ui/slider";
@@ -33,8 +33,8 @@ export function LiveFeedPage() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // Floating leaves positions
-  const leaves = useMemo(
+  // Floating feathers positions
+  const feathers = useMemo(
     () =>
       [...Array(6)].map(() => ({
         startX: Math.random() * vw,
@@ -85,17 +85,17 @@ export function LiveFeedPage() {
         </div>
       </div>
 
-      {/* Floating Leaves */}
-      {leaves.map((l, i) => (
+      {/* Floating Feathers */}
+      {feathers.map((f, i) => (
         <motion.div
           key={i}
           className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none"
           style={{ left: 0, top: 0 }}
-          initial={{ y: -120, x: l.startX, rotate: 0 }}
-          animate={{ y: vh + 140, x: l.endX, rotate: 360 }}
-          transition={{ duration: l.duration, repeat: Infinity, delay: l.delay, ease: "linear" }}
+          initial={{ y: -120, x: f.startX, rotate: 0 }}
+          animate={{ y: vh + 140, x: f.endX, rotate: 360 }}
+          transition={{ duration: f.duration, repeat: Infinity, delay: f.delay, ease: "linear" }}
         >
-          <Leaf className="w-6 h-6" />
+          <Feather className="w-6 h-6" />
         </motion.div>
       ))}
 

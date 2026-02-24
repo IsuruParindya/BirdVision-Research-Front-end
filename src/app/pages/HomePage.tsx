@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Video, Upload, Leaf, Bird, Globe,Scroll} from "lucide-react";
+import { Video, Upload, Leaf, Feather, Bird, Globe,Scroll} from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import boris from "../../assets/boris.jpg";
@@ -39,24 +39,24 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Floating Leaves */}
+      {/* Floating Feathers */}
       {leaves.map((l, i) => (
-        <motion.div
-          key={i}
-          className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none"
-          style={{ left: 0, top: 0 }}
-          initial={{ y: -120, x: l.startX, rotate: 0 }}
-          animate={{ y: vh + 140, x: l.endX, rotate: 360 }}
+      <motion.div
+        key={i}
+        className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none"
+        style={{ left: 0, top: 0 }}
+        initial={{ y: -120, x: l.startX, rotate: 0 }}
+        animate={{ y: vh + 140, x: l.endX, rotate: 360 }}
           transition={{
-            duration: l.duration,
-            repeat: Infinity,
-            delay: l.delay,
-            ease: "linear",
-          }}
+          duration: l.duration,
+          repeat: Infinity,
+          delay: l.delay,
+          ease: "linear",
+        }}
         >
-          <Leaf className="w-6 h-6" />
-        </motion.div>
-      ))}
+        <Feather className="w-6 h-6" />
+      </motion.div>
+    ))}
 
       {/* Hero Content */}
       <div className="relative container mx-auto px-6 py-6 pb-10">

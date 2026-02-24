@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Globe, Palette, Sliders, Save, Leaf } from "lucide-react";
+import { Globe, Palette, Sliders, Save, Leaf, Feather } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "../components/ui/button";
-import { Switch } from "../components/ui/switch";
-import { Slider } from "../components/ui/slider";
 import { Label } from "../components/ui/label";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 
@@ -105,21 +103,17 @@ export function SettingsPage() {
       </div>
 
       {/* ✅ Animated Leaves */}
-      {leaves.map((l, i) => (
+      {/* Floating Feathers */}
+      {leaves.map((f, i) => (
         <motion.div
           key={i}
-          className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none -z-0"
+          className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none"
           style={{ left: 0, top: 0 }}
-          initial={{ y: -120, x: l.startX, rotate: 0 }}
-          animate={{ y: vh + 140, x: l.endX, rotate: 360 }}
-          transition={{
-            duration: l.duration,
-            repeat: Infinity,
-            delay: l.delay,
-            ease: "linear",
-          }}
+          initial={{ y: -120, x: f.startX, rotate: 0 }}
+          animate={{ y: vh + 140, x: f.endX, rotate: 360 }}
+          transition={{ duration: f.duration, repeat: Infinity, delay: f.delay, ease: "linear" }}
         >
-          <Leaf className="w-6 h-6" />
+          <Feather className="w-6 h-6" />
         </motion.div>
       ))}
 

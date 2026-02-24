@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { UploadCloud, FileImage, Film, Trash2, Play, Pause, Leaf, Bird } from "lucide-react";
+import { Key, useEffect, useMemo, useRef, useState } from "react";
+import { UploadCloud, FileImage, Film, Trash2, Play, Pause, Leaf, Bird, Feather } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Button } from "../components/ui/button";
 import { Slider } from "../components/ui/slider";
@@ -194,17 +194,17 @@ export function UploadPage() {
         </div>
       </div>
 
-      {/* Floating Leaves */}
-      {leaves.map((l, i) => (
+      {/* Floating Feathers */}
+      {leaves.map((f: { startX: any; endX: any; duration: any; delay: any; }, i: Key | null | undefined) => (
         <motion.div
           key={i}
           className="fixed text-[var(--forest-green)] opacity-20 pointer-events-none"
           style={{ left: 0, top: 0 }}
-          initial={{ y: -120, x: l.startX, rotate: 0 }}
-          animate={{ y: vh + 140, x: l.endX, rotate: 360 }}
-          transition={{ duration: l.duration, repeat: Infinity, delay: l.delay, ease: "linear" }}
+          initial={{ y: -120, x: f.startX, rotate: 0 }}
+          animate={{ y: vh + 140, x: f.endX, rotate: 360 }}
+          transition={{ duration: f.duration, repeat: Infinity, delay: f.delay, ease: "linear" }}
         >
-          <Leaf className="w-6 h-6" />
+          <Feather className="w-6 h-6" />
         </motion.div>
       ))}
 
@@ -256,7 +256,7 @@ export function UploadPage() {
                 onChange={(e) => onPickFile(e.target.files?.[0] || null)}
               />
 
-              <div className="cursor-pointer rounded-2xl border-2 border-dashed border-white/40 dark:border-white/15 bg-white/40 dark:bg-slate-900/20 p-6 text-center hover:bg-white/55 dark:hover:bg-slate-900/30 transition">
+              <div className="cursor-pointer rounded-2xl border-2 border-dashed border-gray-300 dark:border-white/15 bg-white/40 dark:bg-slate-900/20 p-6 text-center hover:bg-white/55 dark:hover:bg-slate-900/30 transition">
                 <div className="flex items-center justify-center gap-3">
                   <FileImage className="w-6 h-6 text-[var(--forest-green)]" />
                   <Film className="w-6 h-6 text-[var(--sky-blue)]" />
@@ -281,7 +281,7 @@ export function UploadPage() {
                 )}
               </div>
 
-              <div className="relative rounded-2xl overflow-hidden bg-black shadow-xl aspect-video">
+              <div className="relative rounded-2xl overflow-hidden bg-gray-700 shadow-xl aspect-video">
                 {!previewUrl ? (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
                     No media selected
