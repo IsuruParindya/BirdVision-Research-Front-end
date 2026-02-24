@@ -1,0 +1,67 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* BirdVision Custom Styles */
+body {
+  font-family: 'Poppins', sans-serif;
+}
+
+.font-sinhala {
+  font-family: 'Noto Sans Sinhala', sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--forest-green);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--forest-green-light);
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--sky-blue);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--sky-blue-light);
+}
+
+/* Detection box animations */
+@keyframes detection-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.detection-box {
+  animation: detection-pulse 2s ease-in-out infinite;
+}
+
+/* Glassmorphism effect */
+.glass-effect {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
