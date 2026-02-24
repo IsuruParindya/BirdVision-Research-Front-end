@@ -1,0 +1,25 @@
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Allow frontend to talk to backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def root():
+    return {"message": "Backend running"}
+
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    # Dummy response
+    return {
+        "success": True,
+        "prediction": "This is a dummy bird prediction!"
+    }
