@@ -6,20 +6,20 @@ It is designed to interact with a backend API for bird image predictions.
 ---
 
 ## Project Structure
-BirdVision Website/
-└── frontend/
-    ├── public/
-    │   └── robin.png          # Favicon / static assets
-    ├── src/
-    │   ├── app/
-    │   │   └── pages/
-    │   │       ├── HomePage.tsx
-    │   │       ├── UploadPage.tsx
-    │   │       ├── LiveFeedPage.tsx
-    │   │       └── SettingsPage.tsx
-    │   ├── components/        # Reusable React components
-    │   ├── routes.ts
-    │   ├── App.tsx
-    │   └── main.tsx
-    ├── package.json
-    └── vite.config.ts
+
+frontend/
+├── public/
+│   └── robin.png           
+├── src/
+│   ├── app/
+│   │   └── pages/
+│   │       ├── HomePage.tsx
+│   │       ├── UploadPage.tsx
+│   │       ├── LiveFeedPage.tsx
+│   │       └── SettingsPage.tsx
+│   ├── components/        
+│   ├── routes.ts
+│   ├── App.tsx
+│   └── main.tsx
+├── package.json
+└── vite.config.ts
